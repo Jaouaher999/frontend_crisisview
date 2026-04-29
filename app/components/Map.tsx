@@ -67,7 +67,7 @@ export default function Map({
   const [interventions, setInterventions] = useState<Intervention[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:3001/interventions")
+    fetch(process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/interventions` : "http://localhost:3001/interventions")
       .then((res) => res.json())
       .then(setInterventions);
   }, []);

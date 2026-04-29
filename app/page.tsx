@@ -20,7 +20,7 @@ export default function Home() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:3001/incidents")
+    fetch(process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/incidents` : "http://localhost:3001/incidents")
       .then((res) => res.json())
       .then(setIncidents);
   }, []);

@@ -9,7 +9,7 @@ type Incident = {
   longitude: number;
 };
 
-const API = "http://localhost:3001/incidents";
+const API = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/incidents` : "http://localhost:3001/incidents";
 
 export default function IncidentAdmin() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
