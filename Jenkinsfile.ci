@@ -1,0 +1,71 @@
+pipeline {
+    agent { label 'docker-agent' }
+
+    environment {
+        IMAGE_NAME = "yellowstar999/frontend_crisisview"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        BACKEND_VM_IP = "192.168.56.101"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Install') {
+            steps {
+                sh 'npm ci'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh "${tool 'SonarScanner'}/bin/sonar-scanner"
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                sh "docker build --build-arg NEXT_PUBLIC_API_URL=http://${BACKEND_VM_IP}:3001 -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
+            }
+        }
+        
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    sh 'echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin'
+                    sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${IMAGE_NAME}:latest"
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            build job: 'frontend-cd', parameters: [string(name: 'IMAGE_TAG', value: "${IMAGE_NAME}:${IMAGE_TAG}")]
+        }
+        always {
+            deleteDir()
+        }
+    }
+}

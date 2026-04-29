@@ -1,0 +1,37 @@
+pipeline {
+    agent { label 'docker-agent' }
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag to deploy')
+    }
+
+    environment {
+        FRONTEND_VM_IP = "192.168.56.102"
+        BACKEND_VM_IP  = "192.168.56.101"
+    }
+
+    stages {
+        stage('Deploy to Frontend VM') {
+            steps {
+                sshagent(['vm-frontend-ssh']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no user@${FRONTEND_VM_IP} << 'EOF'
+                            docker pull ${params.IMAGE_TAG}
+                            docker rm -f frontend_app || true
+                            docker run -d -p 80:80 -e NEXT_PUBLIC_API_URL=http://${BACKEND_VM_IP}:3001 --name frontend_app ${params.IMAGE_TAG}
+EOF
+                    """
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                retry(5) {
+                    sleep 10
+                    sh "curl -f http://${FRONTEND_VM_IP}:80 || exit 1"
+                }
+            }
+        }
+    }
+}
