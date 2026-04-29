@@ -1,24 +1,27 @@
 pipeline {
-    agent { label 'docker-agent' }
-
     parameters {
-        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag to deploy')
+        string(name: 'AGENT_LABEL', defaultValue: 'docker-agent', description: 'Jenkins agent label to run the pipeline')
+
+        string(name: 'IMAGE_TAG', defaultValue: 'yellowstar999/frontend_crisisview:latest', description: 'Docker image reference to deploy (ex: repo/name:tag)')
+
+        string(name: 'SSH_CREDENTIALS_ID', defaultValue: 'vm-frontend-ssh', description: 'Jenkins SSH Agent credentialsId for the frontend VM')
+        string(name: 'FRONTEND_VM_HOST', defaultValue: '192.168.56.102', description: 'Frontend VM host/IP')
+        string(name: 'FRONTEND_VM_USER', defaultValue: 'user', description: 'SSH username for frontend VM')
+
+        string(name: 'NEXT_PUBLIC_API_URL', defaultValue: 'http://192.168.56.101:3001', description: 'API URL injected at container runtime (should match what the app expects)')
     }
 
-    environment {
-        FRONTEND_VM_IP = "192.168.56.102"
-        BACKEND_VM_IP  = "192.168.56.101"
-    }
+    agent { label "${params.AGENT_LABEL}" }
 
     stages {
         stage('Deploy to Frontend VM') {
             steps {
-                sshagent(['vm-frontend-ssh']) {
+                sshagent(credentials: ["${params.SSH_CREDENTIALS_ID}"]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no user@${FRONTEND_VM_IP} << 'EOF'
+                        ssh -o StrictHostKeyChecking=no ${params.FRONTEND_VM_USER}@${params.FRONTEND_VM_HOST} << 'EOF'
                             docker pull ${params.IMAGE_TAG}
                             docker rm -f frontend_app || true
-                            docker run -d -p 80:80 -e NEXT_PUBLIC_API_URL=http://${BACKEND_VM_IP}:3001 --name frontend_app ${params.IMAGE_TAG}
+                            docker run -d -p 80:80 -e NEXT_PUBLIC_API_URL=${params.NEXT_PUBLIC_API_URL} --name frontend_app ${params.IMAGE_TAG}
 EOF
                     """
                 }
@@ -29,7 +32,7 @@ EOF
             steps {
                 retry(5) {
                     sleep 10
-                    sh "curl -f http://${FRONTEND_VM_IP}:80 || exit 1"
+                    sh "curl -f http://${params.FRONTEND_VM_HOST}:80 || exit 1"
                 }
             }
         }
