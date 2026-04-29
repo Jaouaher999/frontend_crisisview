@@ -26,7 +26,7 @@ Full CRUD (Create, Read, Update, Delete) management for:
 
 ### Prerequisites
 - **Node.js** (v18+)
-- **Running Backend API**: Ensure the [Backend API](../api/README.md) is running on `http://localhost:3001`.
+- **Running Backend API**: Ensure the [Backend API](https://github.com/fredericEducentre/api_crisiview) is running on `http://localhost:3001`.
 
 ### Installation
 
